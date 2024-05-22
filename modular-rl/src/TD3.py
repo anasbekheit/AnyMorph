@@ -9,6 +9,8 @@ from TransformerCritic import CriticTransformerPolicy
 from VariationalActor import VariationalPolicy, VariationalPolicy2
 from VariationalCritic import CriticVariationalPolicy
 import random
+from MetamorphActor import MetamorphActor
+from MetamorphCritic import MetamorphCritic
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -24,6 +26,8 @@ class TD3(object):
             actor = VariationalPolicy2
         elif args.actor_type == "transformer":
             actor = TransformerPolicy
+        elif args.actor_type == "metamorph":
+            actor = MetamorphActor
         else:
             actor = ActorGraphPolicy
 
@@ -57,6 +61,8 @@ class TD3(object):
             critic = CriticVariationalPolicy
         elif args.critic_type == "transformer":
             critic = CriticTransformerPolicy
+        elif args.critic_type == "metamorph":
+            critic = MetamorphCritic
         else:
             critic = CriticGraphPolicy
 
@@ -136,9 +142,7 @@ class TD3(object):
                 noise = torch.FloatTensor(u).data.normal_(0, policy_noise).to(device)
                 noise = noise.clamp(-noise_clip, noise_clip)
                 next_action = self.actor_target(next_state) + noise
-                next_action = next_action.clamp(
-                    -self.args.max_action, self.args.max_action
-                )
+                next_action = next_action.clamp(-self.args.max_action, self.args.max_action)
 
                 # Qtarget = reward + discount * min_i(Qi(next_state, pi(next_state)))
                 target_Q1, target_Q2 = self.critic_target(next_state, next_action)
@@ -150,23 +154,22 @@ class TD3(object):
 
             # compute critic loss
 
-            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-                current_Q2, target_Q
-            )
+            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
             # optimize the critic
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
             if self.args.grad_clipping_value > 0:
-                torch.nn.utils.clip_grad_norm_(
-                    self.critic.parameters(), self.args.grad_clipping_value
-                )
+                torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.args.grad_clipping_value)
             self.critic_optimizer.step()
 
             # delayed policy updates
             if it % policy_freq == 0:
 
                 # compute actor loss
-                actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
+                pi = self.actor(state)
+                Q = self.critic.Q1(state, pi)
+                lmbda = self.args.bc * self.args.alpha / Q.abs().mean().detach() + (1 - self.args.bc)
+                actor_loss = -lmbda * Q.mean() + self.args.bc * F.mse_loss(pi, action)
                 if hasattr(self.actor, 'perm_loss'):
                     actor_loss += self.args.ground_truth_slice_weight * self.actor.perm_loss
 
@@ -174,25 +177,15 @@ class TD3(object):
                 self.actor_optimizer.zero_grad()
                 actor_loss.backward()
                 if self.args.grad_clipping_value > 0:
-                    torch.nn.utils.clip_grad_norm_(
-                        self.actor.parameters(), self.args.grad_clipping_value
-                    )
+                    torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.args.grad_clipping_value)
                 self.actor_optimizer.step()
                 # print([el for el in self.actor.parameters()][0])
                 # update the frozen target models
-                for param, target_param in zip(
-                    self.critic.parameters(), self.critic_target.parameters()
-                ):
-                    target_param.data.copy_(
-                        tau * param.data + (1 - tau) * target_param.data
-                    )
+                for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
-                for param, target_param in zip(
-                    self.actor.parameters(), self.actor_target.parameters()
-                ):
-                    target_param.data.copy_(
-                        tau * param.data + (1 - tau) * target_param.data
-                    )
+                for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
     def train(
         self,

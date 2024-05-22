@@ -136,14 +136,14 @@ def get_args():
         "--actor_type",
         type=str,
         default="smp",
-        choices=["smp", "transformer", "variational", "variational2"],
+        choices=["smp", "transformer", "variational", "variational2", "metamorph"],
         help="Type of the actor to use",
     )
     parser.add_argument(
         "--critic_type",
         type=str,
         default="smp",
-        choices=["smp", "transformer", "variational", "variational2"],
+        choices=["smp", "transformer", "variational", "variational2", "metamorph"],
         help="Type of the critic to use",
     )
     parser.add_argument(
@@ -305,6 +305,17 @@ def get_args():
         help="whether to restrict the observations to only qpos and qvel",
     )
 
+    parser.add_argument(
+        "--bc",
+        type=float,
+        default=0.0,
+    )
+
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=2.5,
+    )
     args = parser.parse_args()
     
     if args.expID is None:

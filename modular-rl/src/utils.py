@@ -53,28 +53,35 @@ def registerEnvs(env_names, max_episode_steps, custom_xml, use_restricted_obs=Fa
             for name in sorted(os.listdir(custom_xml)):
                 if ".xml" in name:
                     paths_to_register.append(os.path.join(custom_xml, name))
+
+    if not paths_to_register:
+        raise ValueError(f"No XML files found to register environments in provided xml: {custom_xml}.")
+    limb_obs_size = None
+    max_action = None
     # register each env
     for xml in paths_to_register:
         env_name = os.path.basename(xml)[:-4]
-        env_file = env_name
         # create a copy of modular environment for custom xml model
-        if not os.path.exists(os.path.join(ENV_DIR, "{}.py".format(env_name))):
+        if not os.path.exists(os.path.join(ENV_DIR, f"{env_name}.py")):
             # create a duplicate of gym environment file for each env (necessary for avoiding bug in gym)
-            copyfile(
-                BASE_MODULAR_ENV_PATH, "{}.py".format(os.path.join(ENV_DIR, env_name))
-            )
+            copyfile(BASE_MODULAR_ENV_PATH, f"{os.path.join(ENV_DIR, env_name)}.py")
+
         params = {"xml": os.path.abspath(xml), "use_restricted_obs": use_restricted_obs}
         # register with gym
         register(
-            id=("%s-v0" % env_name),
+            id=f"{env_name}-v0",
             max_episode_steps=max_episode_steps,
-            entry_point="environments.%s:ModularEnv" % env_file,
+            entry_point=f"environments.{env_name}:ModularEnv",
             kwargs=params,
         )
-        env = wrappers.IdentityWrapper(gym.make("environments:%s-v0" % env_name))
+        env = wrappers.IdentityWrapper(gym.make(f"environments:{env_name}-v0"))
         # the following is the same for each env
         limb_obs_size = env.limb_obs_size
         max_action = env.max_action
+
+    if limb_obs_size is None or max_action is None:
+        raise RuntimeError("Failed to register any environments successfully.")
+
     return limb_obs_size, max_action
 
 

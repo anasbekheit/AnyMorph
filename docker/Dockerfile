@@ -1,17 +1,17 @@
-# this docker file evolved from https://github.com/ShangtongZhang/DeepRL/blob/master/Dockerfile
-# and updated to ubuntu18.04 hereafter
-
-FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
+# Base image with CUDA and Pytorch
+FROM pytorch/pytorch:1.4-cuda10.1-cudnn7-devel
 
 # CUDA includes
 ENV CUDA_PATH /usr/local/cuda
 ENV CUDA_INCLUDE_PATH /usr/local/cuda/include
 ENV CUDA_LIBRARY_PATH /usr/local/cuda/lib64
 
-RUN echo "deb http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list
+# Get Nvidia keys
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
 
 # to avoid dialogues for tzada install
-ENV DEBIAN_FRONTEND=noninteractive 
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install -y --allow-unauthenticated --no-install-recommends \
     build-essential apt-utils cmake git curl vim ca-certificates \
     libjpeg-dev libpng-dev python3.6 python3-pip python3-setuptools \
@@ -20,62 +20,56 @@ RUN apt update && apt install -y --allow-unauthenticated --no-install-recommends
     libboost-python-dev libtinyxml-dev bash python3-tk \
     wget unzip libosmesa6-dev software-properties-common \
     libopenmpi-dev libglew-dev graphviz graphviz-dev patchelf
-
-RUN pip3 install pip --upgrade
-
-#RUN add-apt-repository ppa:jamesh/snap-support && apt-get update && apt install -y patchelf
 RUN rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade pip wheel
-RUN pip3 install pymongo
-RUN pip3 install numpy scipy pyyaml matplotlib ruamel.yaml networkx tensorboardX pygraphviz
+# For some reason, I have to use a different account from the default one.
+# This is absolutely optional and not recommended. You can remove them safely.
+# But be sure to make corresponding changes to all the scripts.
 
-RUN pip3 install torch==1.7.1+cu101 torchvision==0.8.2+cu101 -f https://download.pytorch.org/whl/torch_stable.html
-RUN pip3 install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.7.1+cu101.html
-RUN pip3 install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.7.1+cu101.html
-RUN pip3 install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.7.1+cu101.html
-RUN pip3 install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.7.1+cu101.html
-RUN pip3 install torch-geometric
+WORKDIR /aawadalla
+RUN chmod -R 777 /aawadalla
+RUN chmod -R 777 /usr/local
 
-RUN pip3 install gym
-RUN pip3 install gym[atari]
-RUN pip3 install pybullet cffi
-RUN pip3 install seaborn
-RUN pip3 install git+https://github.com/yobibyte/pgn.git
-RUN pip3 install tensorflow
-#RUN pip3 install git+git://github.com/openai/baselines.git
+ARG uid
+ARG user
+ARG cuda
+RUN useradd -d /aawadalla -u $uid $user
 
-RUN pip3 install six beautifulsoup4 termcolor num2words
-RUN pip3 install lxml tabulate coolname lockfile glfw
-RUN pip3 install Cython
-RUN pip3 install sacred
-RUN pip3 install imageio
+RUN pip install --upgrade pip
+RUN pip install pymongo
+RUN pip install numpy scipy pyyaml matplotlib ruamel.yaml networkx tensorboardX pygraphviz
+RUN pip install torch-scatter==2.0.3 -f https://pytorch-geometric.com/whl/torch-1.4.0+cu101.html
+RUN pip install torch-sparse==0.6.1 -f https://pytorch-geometric.com/whl/torch-1.4.0+cu101.html
+RUN pip install torch-geometric
+RUN pip install "tensorflow<2"
+RUN pip install gym==0.13.1
+RUN pip install gym[atari]
+RUN pip install pybullet cffi
+RUN pip install seaborn
+RUN pip install git+https://github.com/yobibyte/pgn.git
+RUN pip install six beautifulsoup4 termcolor num2words
+RUN pip install lxml tabulate coolname lockfile glfw
+RUN pip install "Cython<3"
+RUN pip install sacred
+RUN pip install imageio
+RUN pip install xmltodict
+RUN pip install torchfold
 
-RUN pip3 install xmltodict
-
-RUN mkdir -p /root/.mujoco \
-    && wget https://www.roboti.us/download/mjpro150_linux.zip -O mujoco.zip --no-check-certificate \
-    && unzip mujoco.zip -d /root/.mujoco \
+USER $user
+RUN mkdir -p /aawadalla/.mujoco \
+    && wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco.zip \
+    && unzip mujoco.zip -d /aawadalla/.mujoco \
+    && mv /aawadalla/.mujoco/mujoco200_linux /aawadalla/.mujoco/mujoco200 \
     && rm mujoco.zip
-RUN wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco.zip --no-check-certificate \
-    && unzip mujoco.zip -d /root/.mujoco \
-    && rm mujoco.zip
-COPY ./mjkey.txt /root/.mujoco/mjkey.txt
-ENV LD_LIBRARY_PATH /root/.mujoco/mjpro150/bin:${LD_LIBRARY_PATH}
-ENV LD_LIBRARY_PATH /root/.mujoco/mjpro200_linux/bin:${LD_LIBRARY_PATH}
-RUN pip3 install mujoco-py==1.50.1.68
+COPY ./mjkey.txt /aawadalla/.mujoco/mjkey.txt
+ENV LD_LIBRARY_PATH /aawadalla/.mujoco/mujoco200/bin:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
+ENV MUJOCO_PY_MUJOCO_PATH /aawadalla/.mujoco/mujoco200
+ENV MUJOCO_PY_MJKEY_PATH /aawadalla/.mujoco/mjkey.txt
+RUN pip3 install mujoco_py==2.0.2.8
+RUN pip3 install baselines==0.1.5 --user
+# Copy the Xdummy script and make it executable
+COPY ./Xdummy /usr/local/bin/Xdummy
 
-ENV LD_LIBRARY_PATH /store/.mujoco/mjpro150/bin:${LD_LIBRARY_PATH}
-ENV LD_LIBRARY_PATH /store/.mujoco/mjpro200_linux/bin:${LD_LIBRARY_PATH}
-
-RUN pip3 install torchfold
-RUN pip3 install baselines==0.1.5
-RUN pip3 install opencv-python
-RUN pip3 install matplotlib
-RUN pip3 install pygame
-RUN pip3 install -e git+https://gitlab.devtools.intel.com/brandont/multiworld.git#egg=multiworld
-
-RUN chmod 777 /usr/local/lib/python3.6/dist-packages/mujoco_py/generated
-
-WORKDIR /store/code/amorpheus_baseline
-ENV PYTHONPATH /store/code/amorpheus_baseline:/store/code/amorpheus_baseline/modular-rl/src:/store/code/amorpheus_baseline/modular-rl
+WORKDIR /aawadalla/amorpheus
+ENV PYTHONPATH /aawadalla/amorpheus:/aawadalla/amorpheus/modular-rl/src:/aawadalla/amorpheus/modular-rl
