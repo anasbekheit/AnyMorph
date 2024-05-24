@@ -1,4 +1,6 @@
-HOME = "/aawadalla"
+import os
+
+HOME = os.environ['HOME']
 SRC_DIR = f"{HOME}/amorpheus/modular-rl/src"
 ENV_DIR = f"{SRC_DIR}/environments"
 XML_DIR = f"{ENV_DIR}/xmls"

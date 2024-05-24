@@ -1,6 +1,10 @@
 # Base image with CUDA and Ubuntu 20.04
 FROM pytorch/pytorch:1.4-cuda10.1-cudnn7-devel
 
+ARG uid
+ARG user
+ARG cuda
+
 # CUDA includes
 ENV CUDA_PATH /usr/local/cuda
 ENV CUDA_INCLUDE_PATH /usr/local/cuda/include
@@ -28,14 +32,11 @@ RUN rm -rf /var/lib/apt/lists/*
 # This is absolutely optional and not recommended. You can remove them safely.
 # But be sure to make corresponding changes to all the scripts.
 
-WORKDIR /aawadalla
-RUN chmod -R 777 /aawadalla
+WORKDIR /$user
+RUN chmod -R 777 /$user
 RUN chmod -R 777 /usr/local
 
-ARG uid
-ARG user
-ARG cuda
-RUN useradd -d /aawadalla -u $uid $user
+RUN useradd -d /$user -u $uid $user
 
 RUN pip install --upgrade pip
 RUN pip install pymongo
@@ -58,20 +59,19 @@ RUN pip install xmltodict
 RUN pip install torchfold
 
 USER $user
-RUN mkdir -p /aawadalla/.mujoco \
+RUN mkdir -p /$user/.mujoco \
     && wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco.zip \
-    && unzip mujoco.zip -d /aawadalla/.mujoco \
-    && mv /aawadalla/.mujoco/mujoco200_linux /aawadalla/.mujoco/mujoco200 \
-    && rm mujoco.zip
-COPY ./mjkey.txt /aawadalla/.mujoco/mjkey.txt
-ENV LD_LIBRARY_PATH /aawadalla/.mujoco/mujoco200/bin:${LD_LIBRARY_PATH}
+    && unzip mujoco.zip -d /$user/.mujoco \
+    && mv /$user/.mujoco/mujoco200_linux /$user/.mujoco/mujoco200 \
+    && rm mujoco.zip \
+    && wget https://www.roboti.us/file/mjkey.txt -O /$user/.mujoco/mjkey.txt
+
+ENV LD_LIBRARY_PATH /$user/.mujoco/mujoco200/bin:${LD_LIBRARY_PATH}
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
-ENV MUJOCO_PY_MUJOCO_PATH /aawadalla/.mujoco/mujoco200
-ENV MUJOCO_PY_MJKEY_PATH /aawadalla/.mujoco/mjkey.txt
+ENV MUJOCO_PY_MUJOCO_PATH /$user/.mujoco/mujoco200
+ENV MUJOCO_PY_MJKEY_PATH /$user/.mujoco/mjkey.txt
 RUN pip3 install mujoco_py==2.0.2.8
 RUN pip3 install baselines==0.1.5 --user
-# Copy the Xdummy script and make it executable
-COPY ./Xdummy /usr/local/bin/Xdummy
 
-WORKDIR /aawadalla/amorpheus
-ENV PYTHONPATH /aawadalla/amorpheus:/aawadalla/amorpheus/modular-rl/src:/aawadalla/amorpheus/modular-rl
+WORKDIR /$user/amorpheus
+ENV PYTHONPATH /$user/amorpheus:/$user/amorpheus/modular-rl/src:/$user/amorpheus/modular-rl
