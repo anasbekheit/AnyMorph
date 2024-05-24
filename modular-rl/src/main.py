@@ -17,7 +17,7 @@ import pymongo
 from sacred import Experiment, SETTINGS
 from sacred.observers import MongoObserver, FileStorageObserver
 
-ex = Experiment("amorpheus")
+ex = Experiment("metamorph")
 
 
 def setup_mongodb(db_url, db_name):
