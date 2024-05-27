@@ -30,13 +30,9 @@ def setup_mongodb(db_url, db_name):
         maxSevSelDelay = 10000  # Assume 10s maximum server selection delay
         try:
             print("Trying to connect to mongoDB '{}'".format(db_url))
-            client = pymongo.MongoClient(
-                db_url, ssl=True, serverSelectionTimeoutMS=maxSevSelDelay
-            )
+            client = pymongo.MongoClient(db_url, ssl=True, serverSelectionTimeoutMS=maxSevSelDelay)
             client.server_info()
-            ex.observers.append(
-                MongoObserver.create(url=db_url, db_name=db_name, ssl=True)
-            )  # db_name=db_name,
+            ex.observers.append(MongoObserver(url=db_url, db_name=db_name, ssl=True))
             print("Added MongoDB observer on {}.".format(db_url))
             mongodb_fail = False
             break
