@@ -224,79 +224,66 @@ def get_args():
     parser.add_argument(
         "--variational_frequency_encoding_size",
         type=int,
-        default=96,
     )
 
     parser.add_argument(
         "--variational_latent_size",
         type=int,
-        default=32,
     )
 
     parser.add_argument(
         "--variational_d_model",
         type=int,
-        default=256,
     )
 
     parser.add_argument(
         "--variational_nhead",
         type=int,
-        default=4,
     )
 
     parser.add_argument(
         "--variational_obs_scale",
         type=float,
-        default=1000.0,
     )
 
     parser.add_argument(
         "--variational_act_scale",
         type=float,
-        default=1000.0,
     )
 
     parser.add_argument(
         "--variational_obs_z_in_init_w",
         type=float,
-        default=0.1,
     )
 
     parser.add_argument(
         "--variational_act_z_in_init_w",
         type=float,
-        default=0.1,
     )
 
     parser.add_argument(
         "--variational_act_out_init_w",
         type=float,
-        default=0.1,
     )
 
     parser.add_argument(
         "--variational_num_transformer_blocks",
         type=int,
-        default=2,
     )
 
     parser.add_argument(
         "--variational_dim_feedforward",
         type=int,
-        default=256,
     )
 
     parser.add_argument(
         "--variational_dropout",
         type=float,
-        default=0.0,
     )
 
     parser.add_argument(
         "--variational_activation",
         type=str,
-        default='relu',
     )
 
     parser.add_argument(
