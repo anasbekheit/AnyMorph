@@ -1,9 +1,9 @@
-cd ../..
+cd ../../..
 for seed in 1 2 3;
 do
 	sleep 5
         python3 main.py \
-          --custom_xml environments/walker_humanoids_hopper \
+          --custom_xml environments/walker_humanoids \
           --actor_type metamorph \
           --critic_type metamorph \
           --seed $seed \
@@ -15,6 +15,7 @@ do
           --attention_hidden_size 1024 \
           --attention_layers 5 \
           --dropout_rate 0.1 \
-          --label whh_metamorph&
+          --bc 1.0 \
+          --label wh_metamorph&
 done
 cd scripts

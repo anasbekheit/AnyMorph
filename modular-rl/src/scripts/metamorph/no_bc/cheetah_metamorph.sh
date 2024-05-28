@@ -1,9 +1,9 @@
-cd ../..
+cd ../../..
 for seed in 1 2 3;
 do
 	sleep 5
         python3 main.py \
-          --custom_xml environments/cheetah_walker_humanoids \
+          --custom_xml environments/cheetahs \
           --actor_type metamorph \
           --critic_type metamorph \
           --seed $seed \
@@ -15,6 +15,6 @@ do
           --attention_hidden_size 1024 \
           --attention_layers 5 \
           --dropout_rate 0.1 \
-          --label cwh_metamorph&
+          --label cheetah_metamorph&
 done
 cd scripts

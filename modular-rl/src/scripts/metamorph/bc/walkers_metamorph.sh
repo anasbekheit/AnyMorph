@@ -1,4 +1,4 @@
-cd ../..
+cd ../../..
 for seed in 1 2 3;
 do
 	sleep 5
@@ -15,6 +15,7 @@ do
           --attention_hidden_size 1024 \
           --attention_layers 5 \
           --dropout_rate 0.1 \
+          --bc 1.0 \
           --label walkers_metamorph&
 done
 cd scripts

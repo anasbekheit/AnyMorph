@@ -1,9 +1,9 @@
-cd ../..
+cd ../../..
 for seed in 1 2 3;
 do
 	sleep 5
         python3 main.py \
-          --custom_xml nervenet \
+          --custom_xml environments/walker_humanoids \
           --actor_type metamorph \
           --critic_type metamorph \
           --seed $seed \
@@ -15,6 +15,6 @@ do
           --attention_hidden_size 1024 \
           --attention_layers 5 \
           --dropout_rate 0.1 \
-          --label nervenet_walkers_metamorph&
+          --label wh_metamorph&
 done
 cd scripts
