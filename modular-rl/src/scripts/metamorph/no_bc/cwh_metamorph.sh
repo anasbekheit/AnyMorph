@@ -15,6 +15,9 @@ do
           --attention_hidden_size 1024 \
           --attention_layers 5 \
           --dropout_rate 0.1 \
+          --bc 0.0 \
+          --alpha 0.0 \
+          --resample 1 \
           --label cwh_metamorph&
 done
 cd scripts

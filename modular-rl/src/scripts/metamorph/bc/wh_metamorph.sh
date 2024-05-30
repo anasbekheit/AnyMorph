@@ -16,6 +16,8 @@ do
           --attention_layers 5 \
           --dropout_rate 0.1 \
           --bc 1.0 \
+          --alpha 2.5 \
+          --resample 1 \
           --label wh_metamorph&
 done
 cd scripts

@@ -191,6 +191,7 @@ class TD3(object):
         self,
         replay_buffer_list,
         iterations_list,
+        resample,
         batch_size=100,
         discount=0.99,
         tau=0.005,
@@ -202,7 +203,7 @@ class TD3(object):
         envs_train_names=None,
     ):
         self.models2train()
-        per_morph_iter = sum(iterations_list) // len(envs_train_names)
+        per_morph_iter = resample * sum(iterations_list) // len(envs_train_names)
         for env_name in envs_train_names:
             replay_buffer = replay_buffer_list[env_name]
             self.change_morphology(graphs[env_name], action_ids[env_name])

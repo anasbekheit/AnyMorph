@@ -21,9 +21,7 @@ def get_args():
         type=int,
         help="If set to 1, save the buffer together with the model.",
     )
-    parser.add_argument(
-        "--label", type=str, default="", help="label of a sacred experiment"
-    )
+    parser.add_argument("--label", type=str, default="", help="label of a sacred experiment")
     parser.add_argument(
         "--morphologies",
         nargs="*",
@@ -292,17 +290,11 @@ def get_args():
         help="whether to restrict the observations to only qpos and qvel",
     )
 
-    parser.add_argument(
-        "--bc",
-        type=float,
-        default=0.0,
-    )
+    parser.add_argument("--bc", type=float, default=0.0)
 
-    parser.add_argument(
-        "--alpha",
-        type=float,
-        default=2.5,
-    )
+    parser.add_argument("--alpha", type=float)
+
+    parser.add_argument("--resample", type=int)
     args = parser.parse_args()
     
     if args.expID is None:

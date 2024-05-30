@@ -175,6 +175,7 @@ def train(_run):
                 policy.train(
                     replay_buffer,
                     episode_timesteps_list,
+                    args.resample,
                     args.batch_size,
                     args.discount,
                     args.tau,
@@ -313,7 +314,7 @@ def train(_run):
 
         for i in range(num_envs_train):
             # add the instant reward to the cumulative buffer
-            # if any sub-env is done at the momoent, set the episode reward list to be the value in the buffer
+            # if any sub-env is done at the moment, set the episode reward list to be the value in the buffer
             episode_reward_list_buffer[i] += reward_list[i]
             if curr_done_list[i] and episode_reward_list[i] == 0:
                 episode_reward_list[i] = episode_reward_list_buffer[i]
@@ -328,9 +329,7 @@ def train(_run):
             new_obs = np.array(new_obs_list[i][: args.limb_obs_size * num_limbs])
             action = np.array(action_list[i][:num_limbs])
             # insert transition in the replay buffer
-            replay_buffer[envs_train_names[i]].add(
-                (obs, new_obs, action, reward_list[i], done_bool)
-            )
+            replay_buffer[envs_train_names[i]].add((obs, new_obs, action, reward_list[i], done_bool))
             num_samples += 1
             # do not increment episode_timesteps if the sub-env has been 'done'
             if not done_list[i]:
