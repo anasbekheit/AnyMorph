@@ -115,66 +115,52 @@ def quat2expmap(q):
 # replay buffer: expects tuples of (state, next_state, action, reward, done)
 # modified from https://github.com/openai/baselines/blob/master/baselines/deepq/replay_buffer.py
 class ReplayBuffer(object):
-    def __init__(self, max_size=1e6, slicing_size=None):
-        self.storage = []
-        self.max_size = max_size
+    def __init__(self, max_size=1e6):
+        self.max_size = int(max_size)
         self.ptr = 0
-        # maintains slicing info for [obs, new_obs, action, reward, done]
-        if slicing_size:
-            self.slicing_size = slicing_size
-        else:
-            self.slicing_size = None
+        self.size = 0
+
+        self.obs_storage = None
+        self.new_obs_storage = None
+        self.action_storage = None
+        self.reward_storage = None
+        self.done_storage = None
+
+    def initialize_storages(self, obs_shape, action_shape):
+        self.obs_storage = np.zeros((self.max_size, *obs_shape), dtype=np.float32)
+        self.new_obs_storage = np.zeros((self.max_size, *obs_shape), dtype=np.float32)
+        self.action_storage = np.zeros((self.max_size, *action_shape), dtype=np.float32)
+        self.reward_storage = np.zeros((self.max_size, 1), dtype=np.float32)
+        self.done_storage = np.zeros((self.max_size, 1), dtype=np.float32)
 
     def add(self, data):
-        if self.slicing_size is None:
-            self.slicing_size = [data[0].size, data[1].size, data[2].size, 1, 1]
-        data = np.concatenate([data[0], data[1], data[2], [data[3]], [data[4]]])
-        if len(self.storage) == self.max_size:
-            self.storage[int(self.ptr)] = data
-            self.ptr = (self.ptr + 1) % self.max_size
-        else:
-            self.storage.append(data)
+        if self.obs_storage is None:
+            self.initialize_storages(data[0].shape, data[2].shape)
+        obs, new_obs, action, reward, done = data
+        self.obs_storage[self.ptr] = obs
+        self.new_obs_storage[self.ptr] = new_obs
+        self.action_storage[self.ptr] = action
+        self.reward_storage[self.ptr] = reward
+        self.done_storage[self.ptr] = done
+
+        self.ptr = (self.ptr + 1) % self.max_size
+        self.size = min(self.size + 1, self.max_size)
 
     def sample(self, batch_size):
-        ind = np.random.randint(0, len(self.storage), size=batch_size)
-        x, y, u, r, d = [], [], [], [], []
+        ind = np.random.randint(0, self.size, size=batch_size)
 
-        for i in ind:
-            data = self.storage[i]
-            X = data[: self.slicing_size[0]]
-            Y = data[self.slicing_size[0] : self.slicing_size[0] + self.slicing_size[1]]
-            U = data[
-                self.slicing_size[0]
-                + self.slicing_size[1] : self.slicing_size[0]
-                + self.slicing_size[1]
-                + self.slicing_size[2]
-            ]
-            R = data[
-                self.slicing_size[0]
-                + self.slicing_size[1]
-                + self.slicing_size[2] : self.slicing_size[0]
-                + self.slicing_size[1]
-                + self.slicing_size[2]
-                + self.slicing_size[3]
-            ]
-            D = data[
-                self.slicing_size[0]
-                + self.slicing_size[1]
-                + self.slicing_size[2]
-                + self.slicing_size[3] :
-            ]
-            x.append(np.array(X, copy=False))
-            y.append(np.array(Y, copy=False))
-            u.append(np.array(U, copy=False))
-            r.append(np.array(R, copy=False))
-            d.append(np.array(D, copy=False))
+        obs_batch = self.obs_storage[ind]
+        new_obs_batch = self.new_obs_storage[ind]
+        action_batch = self.action_storage[ind]
+        reward_batch = self.reward_storage[ind]
+        done_batch = self.done_storage[ind]
 
         return (
-            np.array(x),
-            np.array(y),
-            np.array(u),
-            np.array(r).reshape(-1, 1),
-            np.array(d).reshape(-1, 1),
+            obs_batch,
+            new_obs_batch,
+            action_batch,
+            reward_batch,
+            done_batch,
         )
 
 
