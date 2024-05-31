@@ -173,8 +173,8 @@ class ReplayBuffer(object):
 # credit: https://github.com/Howuhh/prioritized_experience_replay/blob/main/
 class SumTree:
     def __init__(self, size):
-        self.nodes = [0] * (2 * size - 1)
-        self.data = [None] * size
+        self.nodes = np.zeros(shape=(2 * size - 1), dtype=np.float32)
+        self.data = np.array([None] * size)
 
         self.size = size
         self.count = 0
@@ -224,7 +224,7 @@ class SumTree:
 
 
 class PrioritizedReplayBuffer(ReplayBuffer):
-    def __init__(self, max_size=1e6, eps=1e-2, alpha=0.1, beta=0.1):
+    def __init__(self, max_size=1e6, eps=0, alpha=0.1, beta=0.1):
         super().__init__(max_size)
 
         self.tree = SumTree(size=int(max_size))
@@ -236,8 +236,8 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self.max_priority = eps  # priority for new samples, init as eps
 
     def add(self, data):
+        self.tree.add(self.max_priority, self.ptr)
         super().add(data)
-        self.tree.add(self.max_priority, self.ptr - 1)
 
     def sample(self, batch_size):
         assert self.size >= batch_size, "Buffer contains less samples than batch size"
