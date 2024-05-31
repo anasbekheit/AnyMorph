@@ -114,10 +114,10 @@ def quat2expmap(q):
 
 
 class ReplayBuffer(object):
-    def __init__(self, max_size=1e6):
-        self.max_size = int(max_size)
-        self.ptr = 0
-        self.size = 0
+    def __init__(self, buffer_size=1e6):
+        self.size = int(buffer_size)
+        self.count = 0
+        self.real_size = 0
 
         self.obs_storage = None
         self.new_obs_storage = None
@@ -126,28 +126,27 @@ class ReplayBuffer(object):
         self.done_storage = None
 
     def initialize_storages(self, obs_shape, action_shape):
-        self.obs_storage = np.zeros((self.max_size, *obs_shape), dtype=np.float32)
-        self.new_obs_storage = np.zeros((self.max_size, *obs_shape), dtype=np.float32)
-        self.action_storage = np.zeros((self.max_size, *action_shape), dtype=np.float32)
-        self.reward_storage = np.zeros((self.max_size, 1), dtype=np.float32)
-        self.done_storage = np.zeros((self.max_size, 1), dtype=np.float32)
+        self.obs_storage = np.zeros((self.size, *obs_shape), dtype=np.float32)
+        self.new_obs_storage = np.zeros((self.size, *obs_shape), dtype=np.float32)
+        self.action_storage = np.zeros((self.size, *action_shape), dtype=np.float32)
+        self.reward_storage = np.zeros((self.size, 1), dtype=np.float32)
+        self.done_storage = np.zeros((self.size, 1), dtype=np.float32)
 
     def add(self, data):
         if self.obs_storage is None:
             self.initialize_storages(data[0].shape, data[2].shape)
         obs, new_obs, action, reward, done = data
-        self.obs_storage[self.ptr] = obs
-        self.new_obs_storage[self.ptr] = new_obs
-        self.action_storage[self.ptr] = action
-        self.reward_storage[self.ptr] = reward
-        self.done_storage[self.ptr] = done
+        self.obs_storage[self.count] = obs
+        self.new_obs_storage[self.count] = new_obs
+        self.action_storage[self.count] = action
+        self.reward_storage[self.count] = reward
+        self.done_storage[self.count] = done
 
-        self.ptr = (self.ptr + 1) % self.max_size
-        self.size = min(self.size + 1, self.max_size)
+        self.count = (self.count + 1) % self.size
+        self.real_size = min(self.size, self.real_size + 1)
 
     def sample(self, batch_size):
-        sample_idxs = np.random.randint(0, self.size, size=batch_size)
-
+        sample_idxs = np.random.randint(0, self.real_size, size=batch_size)
         obs_batch = self.obs_storage[sample_idxs]
         new_obs_batch = self.new_obs_storage[sample_idxs]
         action_batch = self.action_storage[sample_idxs]
@@ -167,7 +166,7 @@ class ReplayBuffer(object):
         pass
 
     def __len__(self):
-        return self.size
+        return self.real_size
 
 
 # credit: https://github.com/Howuhh/prioritized_experience_replay/blob/main/
@@ -187,24 +186,19 @@ class SumTree:
     def update(self, data_idx, value):
         idx = data_idx + self.size - 1  # child index in tree array
         change = value - self.nodes[idx]
-
         self.nodes[idx] = value
-
-        parent = (idx - 1) // 2
-        while parent >= 0:
-            self.nodes[parent] += change
-            parent = (parent - 1) // 2
+        while idx != 0:
+            idx = (idx - 1) // 2
+            self.nodes[idx] += change
 
     def add(self, value, data):
         self.data[self.count] = data
         self.update(self.count, value)
-
         self.count = (self.count + 1) % self.size
         self.real_size = min(self.size, self.real_size + 1)
 
     def get(self, cumsum):
-        assert cumsum <= self.total
-
+        assert cumsum <= self.total, f"cumsum: {cumsum}, total: {self.total}"
         idx = 0
         while 2 * idx + 1 < len(self.nodes):
             left, right = 2 * idx + 1, 2 * idx + 2
@@ -213,10 +207,9 @@ class SumTree:
                 idx = left
             else:
                 idx = right
-                cumsum = cumsum - self.nodes[left]
+                cumsum -= self.nodes[left]
 
         data_idx = idx - self.size + 1
-
         return data_idx, self.nodes[idx], self.data[data_idx]
 
     def __repr__(self):
@@ -224,10 +217,10 @@ class SumTree:
 
 
 class PrioritizedReplayBuffer(ReplayBuffer):
-    def __init__(self, max_size=1e6, eps=0, alpha=0.1, beta=0.1):
-        super().__init__(max_size)
+    def __init__(self, buffer_size=1e6, eps=1e-2, alpha=0.1, beta=0.1):
+        super().__init__(buffer_size)
 
-        self.tree = SumTree(size=int(max_size))
+        self.tree = SumTree(size=int(buffer_size))
 
         # PER params
         self.eps = eps  # minimal priority, prevents zero probabilities
@@ -236,11 +229,11 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self.max_priority = eps  # priority for new samples, init as eps
 
     def add(self, data):
-        self.tree.add(self.max_priority, self.ptr)
+        self.tree.add(self.max_priority, self.count)
         super().add(data)
 
     def sample(self, batch_size):
-        assert self.size >= batch_size, "Buffer contains less samples than batch size"
+        assert self.real_size >= batch_size, "Buffer contains less samples than batch size"
 
         sample_idxs, tree_idxs = [], []
         priorities = np.empty((batch_size, 1), dtype=np.float32)
@@ -256,7 +249,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             sample_idxs.append(sample_idx)
 
         probs = priorities / self.tree.total
-        weights = (self.size * probs) ** -self.beta
+        weights = (self.real_size * probs) ** -self.beta
         weights = weights / weights.max()
 
         batch = (

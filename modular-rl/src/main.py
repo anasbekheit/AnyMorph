@@ -170,7 +170,7 @@ def train(_run):
         # train and log after one episode for each env
         if collect_done:
             # log updates and train policy
-            if this_training_timesteps != 0:
+            if num_samples // num_envs_train > args.batch_size:
                 policy.train(
                     replay_buffer,
                     episode_timesteps_list,
