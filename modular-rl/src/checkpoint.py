@@ -53,6 +53,7 @@ def save_model(
     return fpath
 
 
+# TODO: update save method for replay buffer
 def save_replay_buffer(rb_path, replay_buffer):
     # save replay buffer
     for name in replay_buffer:
@@ -64,6 +65,7 @@ def save_replay_buffer(rb_path, replay_buffer):
     return rb_path
 
 
+# TODO: update load method to account for new buffer changes
 def load_checkpoint(checkpoint_path, rb_path, policy, args):
     fpath = os.path.join(checkpoint_path, "model.pyth")
     checkpoint = torch.load(fpath, map_location="cpu")
@@ -82,9 +84,7 @@ def load_checkpoint(checkpoint_path, rb_path, policy, args):
     replay_buffer_new = dict()
     for name in all_rb_files:
         if len(all_rb_files) > args.rb_max // 1e6:
-            replay_buffer_new[name] = utils.ReplayBuffer(
-                max_size=args.rb_max // len(all_rb_files)
-            )
+            replay_buffer_new[name] = utils.ReplayBuffer(max_size=args.rb_max // len(all_rb_files))
         else:
             replay_buffer_new[name] = utils.ReplayBuffer()
         replay_buffer_new[name].max_size = int(checkpoint["rb_max"][name])

@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os
 import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import xmltodict
@@ -112,8 +113,6 @@ def quat2expmap(q):
     return r
 
 
-# replay buffer: expects tuples of (state, next_state, action, reward, done)
-# modified from https://github.com/openai/baselines/blob/master/baselines/deepq/replay_buffer.py
 class ReplayBuffer(object):
     def __init__(self, max_size=1e6):
         self.max_size = int(max_size)
@@ -147,21 +146,136 @@ class ReplayBuffer(object):
         self.size = min(self.size + 1, self.max_size)
 
     def sample(self, batch_size):
-        ind = np.random.randint(0, self.size, size=batch_size)
+        sample_idxs = np.random.randint(0, self.size, size=batch_size)
 
-        obs_batch = self.obs_storage[ind]
-        new_obs_batch = self.new_obs_storage[ind]
-        action_batch = self.action_storage[ind]
-        reward_batch = self.reward_storage[ind]
-        done_batch = self.done_storage[ind]
-
-        return (
+        obs_batch = self.obs_storage[sample_idxs]
+        new_obs_batch = self.new_obs_storage[sample_idxs]
+        action_batch = self.action_storage[sample_idxs]
+        reward_batch = self.reward_storage[sample_idxs]
+        done_batch = self.done_storage[sample_idxs]
+        batch = (
             obs_batch,
             new_obs_batch,
             action_batch,
             reward_batch,
             done_batch,
         )
+        weights = np.ones_like(reward_batch)
+        return batch, weights, None
+
+    def update_priorities(self, tree_idxs, priorities):
+        pass
+
+    def __len__(self):
+        return self.size
+
+
+# credit: https://github.com/Howuhh/prioritized_experience_replay/blob/main/
+class SumTree:
+    def __init__(self, size):
+        self.nodes = [0] * (2 * size - 1)
+        self.data = [None] * size
+
+        self.size = size
+        self.count = 0
+        self.real_size = 0
+
+    @property
+    def total(self):
+        return self.nodes[0]
+
+    def update(self, data_idx, value):
+        idx = data_idx + self.size - 1  # child index in tree array
+        change = value - self.nodes[idx]
+
+        self.nodes[idx] = value
+
+        parent = (idx - 1) // 2
+        while parent >= 0:
+            self.nodes[parent] += change
+            parent = (parent - 1) // 2
+
+    def add(self, value, data):
+        self.data[self.count] = data
+        self.update(self.count, value)
+
+        self.count = (self.count + 1) % self.size
+        self.real_size = min(self.size, self.real_size + 1)
+
+    def get(self, cumsum):
+        assert cumsum <= self.total
+
+        idx = 0
+        while 2 * idx + 1 < len(self.nodes):
+            left, right = 2 * idx + 1, 2 * idx + 2
+
+            if cumsum <= self.nodes[left]:
+                idx = left
+            else:
+                idx = right
+                cumsum = cumsum - self.nodes[left]
+
+        data_idx = idx - self.size + 1
+
+        return data_idx, self.nodes[idx], self.data[data_idx]
+
+    def __repr__(self):
+        return f"SumTree(nodes={self.nodes.__repr__()}, data={self.data.__repr__()})"
+
+
+class PrioritizedReplayBuffer(ReplayBuffer):
+    def __init__(self, max_size=1e6, eps=1e-2, alpha=0.1, beta=0.1):
+        super().__init__(max_size)
+
+        self.tree = SumTree(size=max_size)
+
+        # PER params
+        self.eps = eps  # minimal priority, prevents zero probabilities
+        self.alpha = alpha  # determines how much prioritization is used, α = 0 corresponding to the uniform case
+        self.beta = beta  # determines the amount of importance-sampling correction, b = 1 fully compensate for the non-uniform probabilities
+        self.max_priority = eps  # priority for new samples, init as eps
+
+    def add(self, data):
+        super().add(data)
+        self.tree.add(self.max_priority, self.ptr - 1)
+
+    def sample(self, batch_size):
+        assert self.size >= batch_size, "Buffer contains less samples than batch size"
+
+        sample_idxs, tree_idxs = [], []
+        priorities = np.empty((batch_size, 1), dtype=np.float32)
+
+        segment = self.tree.total / batch_size
+        for i in range(batch_size):
+            a, b = segment * i, segment * (i + 1)
+            cumsum = np.random.uniform(a, b)
+            tree_idx, priority, sample_idx = self.tree.get(cumsum)
+
+            priorities[i] = priority
+            tree_idxs.append(tree_idx)
+            sample_idxs.append(sample_idx)
+
+        probs = priorities / self.tree.total
+        weights = (self.size * probs) ** -self.beta
+        weights = weights / weights.max()
+
+        batch = (
+            self.obs_storage[sample_idxs],
+            self.new_obs_storage[sample_idxs],
+            self.action_storage[sample_idxs],
+            self.reward_storage[sample_idxs],
+            self.done_storage[sample_idxs]
+        )
+        return batch, weights, tree_idxs
+
+    def update_priorities(self, tree_idxs, priorities):
+        if isinstance(priorities, torch.Tensor):
+            priorities = priorities.detach().cpu().numpy()
+
+        for tree_idx, priority in zip(tree_idxs, priorities):
+            priority = (priority + self.eps) ** self.alpha
+            self.tree.update(tree_idx, priority)
+            self.max_priority = max(self.max_priority, priority)
 
 
 class MLPBase(nn.Module):
@@ -183,7 +297,7 @@ GLOBAL_SET_OF_NAMES = []
 
 def getGraphStructure(xml_file, graph_type="morphology", return_action_ids=False):
     """Traverse the given xml file as a tree by pre-order and return the graph structure as a parents list"""
-    
+
     # signal message flipping for flipped walker morphologies
     is_flipped = "walker" in os.path.basename(xml_file) and "flipped" in os.path.basename(
         xml_file
@@ -235,6 +349,11 @@ def getGraphStructure(xml_file, graph_type="morphology", return_action_ids=False
         return parents, self_names
     else:
         return parents
+
+
+def weighted_mse_loss(input, target, weight):
+    error = input - target
+    return torch.mean(weight * error ** 2), error.detach().cpu()
 
 
 def getGraphJoints(xml_file):

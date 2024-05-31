@@ -11,6 +11,7 @@ from VariationalCritic import CriticVariationalPolicy
 import random
 from MetamorphActor import MetamorphActor
 from MetamorphCritic import MetamorphCritic
+from utils import weighted_mse_loss
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -130,37 +131,40 @@ class TD3(object):
         for it in range(iterations):
 
             # sample replay buffer
-            x, y, u, r, d = replay_buffer.sample(batch_size)
-            state = torch.FloatTensor(x).to(device)
-            next_state = torch.FloatTensor(y).to(device)
-            action = torch.FloatTensor(u).to(device)
-            reward = torch.FloatTensor(r).to(device)
-            done = torch.FloatTensor(1 - d).to(device)
-
+            batch, weights, tree_idxs = replay_buffer.sample(batch_size)
+            obs, new_obs, action, reward, done = batch
+            state = torch.from_numpy(obs).to(device)
+            next_state = torch.from_numpy(new_obs).to(device)
+            action = torch.from_numpy(action).to(device)
+            reward = torch.from_numpy(reward).to(device)
+            not_done = torch.from_numpy(1 - done).to(device)
+            weights = torch.from_numpy(weights).to(device)
             # select action according to policy and add clipped noise
             with torch.no_grad():
-                noise = torch.FloatTensor(u).data.normal_(0, policy_noise).to(device)
-                noise = noise.clamp(-noise_clip, noise_clip)
+                noise = torch.randn_like(action, device=device)
+                noise.mul_(policy_noise).clamp_(-noise_clip, noise_clip)
                 next_action = self.actor_target(next_state) + noise
                 next_action = next_action.clamp(-self.args.max_action, self.args.max_action)
 
                 # Qtarget = reward + discount * min_i(Qi(next_state, pi(next_state)))
                 target_Q1, target_Q2 = self.critic_target(next_state, next_action)
                 target_Q = torch.min(target_Q1, target_Q2)
-                target_Q = reward + (done * discount * target_Q)
+                target_Q = reward + (not_done * discount * target_Q)
 
             # get current Q estimates
             current_Q1, current_Q2 = self.critic(state, action)
 
             # compute critic loss
-
-            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+            critic_1_loss, error_1 = weighted_mse_loss(current_Q1, target_Q, weights)
+            critic_2_loss, error_2 = weighted_mse_loss(current_Q2, target_Q, weights)
+            critic_loss = critic_1_loss + critic_2_loss
             # optimize the critic
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
             if self.args.grad_clipping_value > 0:
                 torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.args.grad_clipping_value)
             self.critic_optimizer.step()
+            replay_buffer.update_priorities(tree_idxs, error_1.abs() + error_2.abs())
 
             # delayed policy updates
             if it % policy_freq == 0:

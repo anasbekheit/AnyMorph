@@ -224,7 +224,7 @@ def train(_run):
                         num_samples,
                         sum(
                             [
-                                len(replay_buffer[name].storage)
+                                len(replay_buffer[name])
                                 for name in envs_train_names
                             ]
                         ),
