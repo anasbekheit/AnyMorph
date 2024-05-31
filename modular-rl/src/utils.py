@@ -227,7 +227,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
     def __init__(self, max_size=1e6, eps=1e-2, alpha=0.1, beta=0.1):
         super().__init__(max_size)
 
-        self.tree = SumTree(size=max_size)
+        self.tree = SumTree(size=int(max_size))
 
         # PER params
         self.eps = eps  # minimal priority, prevents zero probabilities
