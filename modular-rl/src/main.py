@@ -145,14 +145,13 @@ def train(_run):
         num_samples = 0
         # different replay buffer for each env; avoid using too much memory if there are too many envs
         replay_buffer = dict()
+        Buffer = utils.PrioritizedReplayBuffer if args.priority_buffer == 1 else utils.ReplayBuffer
         if num_envs_train > args.rb_max // 1e6:
             for name in envs_train_names:
-                replay_buffer[name] = utils.ReplayBuffer(
-                    max_size=args.rb_max // num_envs_train
-                )
+                replay_buffer[name] = Buffer(max_size=args.rb_max // num_envs_train)
         else:
             for name in envs_train_names:
-                replay_buffer[name] = utils.ReplayBuffer()
+                replay_buffer[name] = Buffer()
 
     # Initialize training variables ================================================
     writer = SummaryWriter("%s/%s/" % (DATA_DIR, exp_name))

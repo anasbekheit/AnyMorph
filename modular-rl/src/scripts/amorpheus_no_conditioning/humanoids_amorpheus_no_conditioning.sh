@@ -8,6 +8,7 @@ do
           --critic_type transformer \
           --seed $seed \
           --grad_clipping_value 0.1 \
+          --priority_buffer 0 \
           --attention_layers 3 \
           --attention_heads 2 \
           --lr 0.0001 \

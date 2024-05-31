@@ -8,6 +8,7 @@ do
           --critic_type metamorph \
           --seed $seed \
           --grad_clipping_value 0.1 \
+          --priority_buffer 0 \
           --lr 0.0001 \
           --transformer_norm 1 \
           --attention_embedding_size 128 \

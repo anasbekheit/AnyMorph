@@ -295,6 +295,8 @@ def get_args():
     parser.add_argument("--alpha", type=float)
 
     parser.add_argument("--resample", type=int)
+
+    parser.add_argument("--priority_buffer", type=int)
     args = parser.parse_args()
     
     if args.expID is None:
