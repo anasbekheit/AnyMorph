@@ -41,11 +41,11 @@ def save_model(
         "episode_num": episode_num,
         "num_samples": num_samples,
         "args": args,
-        "rb_max": {name: replay_buffer[name].max_size for name in replay_buffer},
-        "rb_ptr": {name: replay_buffer[name].ptr for name in replay_buffer},
-        "rb_slicing_size": {
-            name: replay_buffer[name].slicing_size for name in replay_buffer
-        },
+        # "rb_max": {name: replay_buffer[name].max_size for name in replay_buffer},
+        # "rb_ptr": {name: replay_buffer[name].ptr for name in replay_buffer},
+        # "rb_slicing_size": {
+        #    name: replay_buffer[name].slicing_size for name in replay_buffer
+        # },
     }
     fpath = os.path.join(checkpoint_path, model_name)
     # (over)write the checkpoint
@@ -84,15 +84,13 @@ def load_checkpoint(checkpoint_path, rb_path, policy, args):
     replay_buffer_new = dict()
     for name in all_rb_files:
         if len(all_rb_files) > args.rb_max // 1e6:
-            replay_buffer_new[name] = utils.ReplayBuffer(max_size=args.rb_max // len(all_rb_files))
+            replay_buffer_new[name] = utils.ReplayBuffer(buffer_size=args.rb_max // len(all_rb_files))
         else:
             replay_buffer_new[name] = utils.ReplayBuffer()
-        replay_buffer_new[name].max_size = int(checkpoint["rb_max"][name])
-        replay_buffer_new[name].ptr = int(checkpoint["rb_ptr"][name])
-        replay_buffer_new[name].slicing_size = checkpoint["rb_slicing_size"][name]
-        replay_buffer_new[name].storage = list(
-            np.load(os.path.join(rb_path, "{}.npy".format(name)))
-        )
+        # replay_buffer_new[name].max_size = int(checkpoint["rb_max"][name])
+        # replay_buffer_new[name].ptr = int(checkpoint["rb_ptr"][name])
+        # replay_buffer_new[name].slicing_size = checkpoint["rb_slicing_size"][name]
+        # replay_buffer_new[name].storage = list(np.load(os.path.join(rb_path, "{}.npy".format(name))))
 
     return (
         checkpoint["total_timesteps"],
