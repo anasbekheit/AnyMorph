@@ -154,7 +154,7 @@ def train(_run):
                 replay_buffer[name] = Buffer()
 
     # Initialize training variables ================================================
-    writer = SummaryWriter("%s/%s/" % (DATA_DIR, exp_name))
+    writer = SummaryWriter(get_log_dir_name(args))
     s = time.time()
     timesteps_since_saving = 0
     timesteps_since_saving_model_only = 0
@@ -372,3 +372,17 @@ if __name__ == "__main__":
         ex.run()
     else:
         train()
+
+
+def get_log_dir_name(args):
+    settings_str = get_settings(args)
+    log_dir = f"{DATA_DIR}/tensorboard/{settings_str}/"
+    return log_dir
+
+
+def get_settings(args):
+    return (
+        f"env-{args.env_name}-"
+        f"bc-{args.bc}-"
+        f"resample-{args.resample}"
+    )

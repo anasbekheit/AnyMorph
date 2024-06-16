@@ -35,6 +35,14 @@ def get_args():
         default=None,
         help="path to MuJoCo xml files (can be either one file or a directory containing multiple files)",
     )
+
+    parser.add_argument(
+        "--env_name",
+        type=str,
+        default=None,
+        help="environment name",
+    )
+
     parser.add_argument(
         "--custom_xml_held_out",
         type=str,
