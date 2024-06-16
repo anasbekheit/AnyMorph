@@ -72,6 +72,6 @@ ENV MUJOCO_PY_MUJOCO_PATH /$user/.mujoco/mujoco200
 ENV MUJOCO_PY_MJKEY_PATH /$user/.mujoco/mjkey.txt
 RUN pip3 install mujoco_py==2.0.2.8
 RUN pip3 install baselines==0.1.5 --user
-
+RUN python3 -c "import mujoco_py"
 WORKDIR /$user/amorpheus
 ENV PYTHONPATH /$user/amorpheus:/$user/amorpheus/modular-rl/src:/$user/amorpheus/modular-rl
