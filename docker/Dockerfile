@@ -21,7 +21,7 @@ RUN apt update && apt install -y --allow-unauthenticated --no-install-recommends
     qtbase5-dev libqt5opengl5-dev libassimp-dev libpython3.6-dev \
     libboost-python-dev libtinyxml-dev bash python3-tk \
     wget unzip libosmesa6-dev software-properties-common \
-    libopenmpi-dev libglew-dev graphviz graphviz-dev patchelf
+    libopenmpi-dev libglew-dev graphviz graphviz-dev patchelf nano
 
 RUN pip3 install pip --upgrade
 
