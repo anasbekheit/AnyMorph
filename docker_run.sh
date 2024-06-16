@@ -6,5 +6,5 @@ if [ "$cuda" = "cpu" ]; then
     docker run -it -v "$(pwd)":/$USER/code/amorpheus:rw --hostname "$HOSTNAME" --workdir /$USER/amorpheus/modular-rl/src/scripts/ amorpheus
 else
     echo "Running on GPU: $cuda"
-    docker run --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES="$cuda" -it -v "$(pwd)":/$USER/amorpheus:rw --hostname "$HOSTNAME" --workdir /$USER/amorpheus/modular-rl/src/scripts/ amorpheus
+    docker run --runtime=nvidia --gpus all -it -v "$(pwd)":/$USER/amorpheus:rw --hostname "$HOSTNAME" --workdir /$USER/amorpheus/modular-rl/src/scripts/ amorpheus
 fi
