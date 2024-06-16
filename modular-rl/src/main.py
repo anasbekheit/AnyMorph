@@ -20,6 +20,20 @@ from sacred.observers import MongoObserver, FileStorageObserver
 ex = Experiment("metamorph")
 
 
+def get_log_dir_name(args):
+    settings_str = get_settings(args)
+    log_dir = f"{DATA_DIR}/tensorboard/{settings_str}/"
+    return log_dir
+
+
+def get_settings(args):
+    return (
+        f"env-{args.env_name}-"
+        f"bc-{args.bc}-"
+        f"resample-{args.resample}"
+    )
+
+
 def setup_mongodb(db_url, db_name):
     # this function was taken from the pymarl distro
     client = None
@@ -107,8 +121,8 @@ def train(_run):
     max_num_limbs = max([len(args.graphs[env_name]) for env_name in envs_train_names])
     # create vectorized training env
     obs_max_len = (
-        max([len(args.graphs[env_name]) for env_name in envs_train_names])
-        * args.limb_obs_size
+            max([len(args.graphs[env_name]) for env_name in envs_train_names])
+            * args.limb_obs_size
     )
     envs_train = [
         utils.makeEnvWrapper(name, obs_max_len, args.seed) for name in envs_train_names
@@ -148,7 +162,7 @@ def train(_run):
         Buffer = utils.PrioritizedReplayBuffer if args.priority_buffer == 1 else utils.ReplayBuffer
         if num_envs_train > args.rb_max // 1e6:
             for name in envs_train_names:
-                replay_buffer[name] = Buffer(max_size=args.rb_max // num_envs_train)
+                replay_buffer[name] = Buffer(buffer_size=args.rb_max // num_envs_train)
         else:
             for name in envs_train_names:
                 replay_buffer[name] = Buffer()
@@ -282,19 +296,19 @@ def train(_run):
             action_list = []
             for i in range(num_envs_train):
                 # dynamically change the graph structure of the modular policy
-                policy.change_morphology(args.graphs[envs_train_names[i]], 
+                policy.change_morphology(args.graphs[envs_train_names[i]],
                                          args.action_ids[envs_train_names[i]])
                 # remove 0 padding of obs before feeding into the policy (trick for vectorized env)
                 obs = np.array(
                     obs_list[i][
-                        : args.limb_obs_size * len(args.graphs[envs_train_names[i]])
+                    : args.limb_obs_size * len(args.graphs[envs_train_names[i]])
                     ]
                 )
                 policy_action = policy.select_action(obs)
                 if args.expl_noise != 0:
                     policy_action = (
-                        policy_action
-                        + np.random.normal(0, args.expl_noise, size=policy_action.size)
+                            policy_action
+                            + np.random.normal(0, args.expl_noise, size=policy_action.size)
                     ).clip(
                         envs_train.action_space.low[0], envs_train.action_space.high[0]
                     )
@@ -372,17 +386,3 @@ if __name__ == "__main__":
         ex.run()
     else:
         train()
-
-
-def get_log_dir_name(args):
-    settings_str = get_settings(args)
-    log_dir = f"{DATA_DIR}/tensorboard/{settings_str}/"
-    return log_dir
-
-
-def get_settings(args):
-    return (
-        f"env-{args.env_name}-"
-        f"bc-{args.bc}-"
-        f"resample-{args.resample}"
-    )

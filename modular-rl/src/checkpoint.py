@@ -81,16 +81,14 @@ def load_checkpoint(checkpoint_path, rb_path, policy, args):
     # load replay buffer
     all_rb_files = [f[:-4] for f in os.listdir(rb_path) if ".npy" in f]
     all_rb_files.sort()
-    replay_buffer_new = dict()
+    replay_buffer_new: {str: utils.ReplayBuffer} = dict()
     for name in all_rb_files:
         if len(all_rb_files) > args.rb_max // 1e6:
             replay_buffer_new[name] = utils.ReplayBuffer(buffer_size=args.rb_max // len(all_rb_files))
         else:
             replay_buffer_new[name] = utils.ReplayBuffer()
-        # replay_buffer_new[name].max_size = int(checkpoint["rb_max"][name])
-        # replay_buffer_new[name].ptr = int(checkpoint["rb_ptr"][name])
-        # replay_buffer_new[name].slicing_size = checkpoint["rb_slicing_size"][name]
-        # replay_buffer_new[name].storage = list(np.load(os.path.join(rb_path, "{}.npy".format(name))))
+        replay_buffer_new[name].size = int(checkpoint["rb_max"][name])
+        replay_buffer_new[name].count = int(checkpoint["rb_ptr"][name])
 
     return (
         checkpoint["total_timesteps"],
