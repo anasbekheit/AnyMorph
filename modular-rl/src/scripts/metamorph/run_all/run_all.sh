@@ -1,12 +1,14 @@
 #!/bin/bash
 
+NUM_GPUS=4
+
 main() {
     cd ../../.. || exit 1
 
     for bc_value in 0 1; do
-        for ENV_NAME in cheetahs hoppers; do
+        for ENV_NAME in hoppers; do
             for resample_value in 1 4 8; do
-                for seed in {1..6}; do
+                for seed in $(seq 1 $NUM_GPUS); do
                     sleep 5
 
                     GPU_ID=$((seed % 2))
