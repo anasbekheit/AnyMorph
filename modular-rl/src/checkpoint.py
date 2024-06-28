@@ -41,11 +41,9 @@ def save_model(
         "episode_num": episode_num,
         "num_samples": num_samples,
         "args": args,
-        # "rb_max": {name: replay_buffer[name].max_size for name in replay_buffer},
-        # "rb_ptr": {name: replay_buffer[name].ptr for name in replay_buffer},
-        # "rb_slicing_size": {
-        #    name: replay_buffer[name].slicing_size for name in replay_buffer
-        # },
+        "rb_max": {name: replay_buffer[name].max_size for name in replay_buffer},
+        "rb_ptr": {name: replay_buffer[name].ptr for name in replay_buffer},
+        "rb_real": {name: replay_buffer[name].real_size for name in replay_buffer}
     }
     fpath = os.path.join(checkpoint_path, model_name)
     # (over)write the checkpoint
@@ -53,19 +51,18 @@ def save_model(
     return fpath
 
 
-# TODO: update save method for replay buffer
 def save_replay_buffer(rb_path, replay_buffer):
     # save replay buffer
     for name in replay_buffer:
-        np.save(
-            os.path.join(rb_path, "{}.npy".format(name)),
-            np.array(replay_buffer[name].storage),
-            allow_pickle=False,
-        )
+        path = os.path.join(rb_path, f'{name}')
+        np.save(path+'-obs.npy', replay_buffer[name].obs_storage)
+        np.save(path+'-new_obs.npy', replay_buffer[name].new_obs_storage)
+        np.save(path+'-action.npy', replay_buffer[name].action_storage)
+        np.save(path+'-reward.npy', replay_buffer[name].reward_storage)
+        np.save(path+'-done.npy', replay_buffer[name].done_storage)
     return rb_path
 
 
-# TODO: update load method to account for new buffer changes
 def load_checkpoint(checkpoint_path, rb_path, policy, args):
     fpath = os.path.join(checkpoint_path, "model.pyth")
     checkpoint = torch.load(fpath, map_location="cpu")
@@ -89,14 +86,21 @@ def load_checkpoint(checkpoint_path, rb_path, policy, args):
             replay_buffer_new[name] = utils.ReplayBuffer()
         replay_buffer_new[name].size = int(checkpoint["rb_max"][name])
         replay_buffer_new[name].count = int(checkpoint["rb_ptr"][name])
+        replay_buffer_new[name].count = int(checkpoint["rb_real"][name])
+        replay_buffer_new[name].obs_storage = np.load(rb_path+'-obs.npy')
+        replay_buffer_new[name].new_obs_storage = np.load(rb_path+'-new_obs.npy')
+        replay_buffer_new[name].action_storage = np.load(rb_path+'-action.npy')
+        replay_buffer_new[name].reward_storage = np.load(rb_path+'-reward.npy')
+        replay_buffer_new[name].done_storage = np.load(rb_path+'-done.npy')
+
 
     return (
-        checkpoint["total_timesteps"],
-        checkpoint["episode_num"],
-        replay_buffer_new,
-        checkpoint["num_samples"],
-        fpath,
-    )
+            checkpoint["total_timesteps"],
+            checkpoint["episode_num"],
+            replay_buffer_new,
+            checkpoint["num_samples"],
+            fpath,
+        )
 
 
 def load_model_only(exp_path, policy, model_name="model.pyth"):
